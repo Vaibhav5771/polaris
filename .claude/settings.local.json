@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ghost-ai__trigger_design_agent"
+    ]
+  }
+}

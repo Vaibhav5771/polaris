@@ -91,7 +91,7 @@ export function AiArchitectTab({ messages, onSend, isThinking, statusMessage }: 
         <div className="shrink-0 flex items-center gap-2 border-t border-primary/20 bg-primary/5 px-4 py-2">
           <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
           <span className="truncate text-xs text-primary">
-            {statusMessage ?? "Ghost AI is working…"}
+            {statusMessage ?? "Polaris is working…"}
           </span>
         </div>
       )}
@@ -103,13 +103,13 @@ export function AiArchitectTab({ messages, onSend, isThinking, statusMessage }: 
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Ask Ghost AI to design or refine a system…"
+            placeholder="Ask Polaris to design or refine a system…"
             style={{
               minHeight: TEXTAREA_MIN_HEIGHT,
               maxHeight: TEXTAREA_MAX_HEIGHT,
             }}
             className="resize-none pr-12 text-sm"
-            aria-label="Chat with Ghost AI"
+            aria-label="Chat with Polaris"
             disabled={isThinking}
           />
           <Button
@@ -147,10 +147,10 @@ function EmptyState({
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">
-          Design with Ghost AI
+          Design with Polaris
         </p>
         <p className="text-xs text-muted-foreground">
-          Describe a system and Ghost AI will help you architect it.
+          Describe a system and Polaris will help you architect it.
         </p>
       </div>
 

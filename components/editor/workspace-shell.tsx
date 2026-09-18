@@ -81,7 +81,7 @@ export function WorkspaceShell({
     const succeeded = runStatus === "COMPLETED"
     const msg: ChatMessage = {
       id: `ai-${Date.now()}-${Math.random()}`,
-      sender: "Ghost AI",
+      sender: "Polaris",
       role: "assistant",
       content: succeeded
         ? "Design complete. Your canvas has been updated."
@@ -104,7 +104,7 @@ export function WorkspaceShell({
     } else {
       addChatMessageRef.current?.({
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: `Spec generation ${specRunStatus.toLowerCase()}. Check the Trigger.dev dashboard for details.`,
         timestamp: Date.now(),
@@ -165,7 +165,7 @@ export function WorkspaceShell({
       console.error("Spec generation failed:", err)
       addChatMessageRef.current?.({
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: "Failed to start spec generation. Check that the Trigger.dev dev server is running and try again.",
         timestamp: Date.now(),
@@ -205,7 +205,7 @@ export function WorkspaceShell({
     } catch {
       const errMsg: ChatMessage = {
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: "Failed to start the design task. Please try again.",
         timestamp: Date.now(),
@@ -217,7 +217,7 @@ export function WorkspaceShell({
   const handleAiMessage = useCallback((message: string) => {
     const aiMsg: ChatMessage = {
       id: `ai-${Date.now()}-${Math.random()}`,
-      sender: "Ghost AI",
+      sender: "Polaris",
       role: "assistant",
       content: message,
       timestamp: Date.now(),

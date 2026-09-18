@@ -426,7 +426,7 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
       {aiThinking && (
         <div className="pointer-events-none absolute bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/30 bg-background/90 px-4 py-2 text-xs font-medium text-primary backdrop-blur">
           <Loader2 className="h-3 w-3 animate-spin" />
-          Ghost AI is designing…
+          Polaris is designing…
         </div>
       )}
     </div>

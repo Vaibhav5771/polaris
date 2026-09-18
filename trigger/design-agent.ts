@@ -1,10 +1,12 @@
-import { logger, schemaTask } from "@trigger.dev/sdk/v3";
+import { logger, schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { createGroq } from "@ai-sdk/groq";
 import { generateObject } from "ai";
+import { put } from "@vercel/blob";
 
 import type { Json } from "@liveblocks/core";
 import { liveblocks } from "@/lib/liveblocks";
+import { prisma } from "@/lib/prisma";
 import {
   NODE_COLOR_PALETTE,
   DEFAULT_NODE_BACKGROUND,
@@ -12,7 +14,7 @@ import {
   type CanvasAction,
 } from "@/types/canvas";
 
-const AI_USER_ID = "ghost-ai";
+const AI_USER_ID = "polaris";
 
 const SHAPE_SIZES = {
   rectangle: { width: 160, height: 80 },
@@ -23,7 +25,7 @@ const SHAPE_SIZES = {
   hexagon:   { width: 120, height: 100 },
 } as const;
 
-const SYSTEM_PROMPT = `You are Ghost AI, a system architecture diagram assistant.
+const SYSTEM_PROMPT = `You are Polaris, a system architecture diagram assistant.
 Given a user description, output a canvas diagram as nodes and edges.
 
 SHAPES (pick by role):
@@ -94,6 +96,14 @@ async function trySetPresence(roomId: string, data: Record<string, Json | undefi
   }
 }
 
+async function safeBroadcast(roomId: string, event: Json) {
+  try {
+    await liveblocks.broadcastEvent(roomId, event);
+  } catch {
+    // No active connections — room may not exist yet; silently skip
+  }
+}
+
 export const designAgentTask = schemaTask({
   id: "design-agent",
   maxDuration: 300,
@@ -105,7 +115,7 @@ export const designAgentTask = schemaTask({
     logger.log("design-agent started", { roomId, promptLength: prompt.length });
 
     await trySetPresence(roomId, { cursor: { x: 500, y: 300 }, thinking: true });
-    await liveblocks.broadcastEvent(roomId, {
+    await safeBroadcast(roomId, {
       type: "ai:status",
       message: "Analyzing your design request…",
       thinking: true,
@@ -114,9 +124,9 @@ export const designAgentTask = schemaTask({
     try {
       const model = createGroq({
         apiKey: process.env.GROQ_API_KEY,
-      })("meta-llama/llama-4-scout-17b-16e-instruct");
+      })("openai/gpt-oss-120b");
 
-      await liveblocks.broadcastEvent(roomId, {
+      await safeBroadcast(roomId, {
         type: "ai:status",
         message: "Generating your architecture…",
         thinking: true,
@@ -134,41 +144,56 @@ export const designAgentTask = schemaTask({
         edgeCount: object.edges.length,
       });
 
-      await liveblocks.broadcastEvent(roomId, {
+      await safeBroadcast(roomId, {
         type: "ai:status",
         message: "Placing nodes on the canvas…",
         thinking: true,
       });
 
-      // Broadcast each node as a canvas action
+      // Build canvas nodes for both broadcast and direct persistence
+      const canvasNodes: object[] = [];
       for (const node of object.nodes) {
         const palette = NODE_COLOR_PALETTE.find((p) => p.id === node.paletteId);
         const defaultSize = SHAPE_SIZES[node.shape as keyof typeof SHAPE_SIZES];
+        const color = palette?.background ?? DEFAULT_NODE_BACKGROUND;
+        const textColor = palette?.text ?? DEFAULT_NODE_TEXT;
+        const width = node.width ?? defaultSize.width;
+        const height = node.height ?? defaultSize.height;
+
         const action: CanvasAction = {
           type: "addNode",
           id: node.id,
           label: node.label,
           shape: node.shape,
-          color: palette?.background ?? DEFAULT_NODE_BACKGROUND,
-          textColor: palette?.text ?? DEFAULT_NODE_TEXT,
+          color,
+          textColor,
           x: node.x,
           y: node.y,
-          width: node.width ?? defaultSize.width,
-          height: node.height ?? defaultSize.height,
+          width,
+          height,
         };
-        await liveblocks.broadcastEvent(roomId, { type: "ai:action", action });
+        await safeBroadcast(roomId, { type: "ai:action", action });
+
+        canvasNodes.push({
+          id: node.id,
+          type: "canvasNode",
+          position: { x: node.x, y: node.y },
+          data: { label: node.label, shape: node.shape, color, textColor },
+          width,
+          height,
+        });
       }
 
-      // Small pause so node rendering settles before edges arrive
       await new Promise((r) => setTimeout(r, 200));
 
-      await liveblocks.broadcastEvent(roomId, {
+      await safeBroadcast(roomId, {
         type: "ai:status",
         message: "Connecting the nodes…",
         thinking: true,
       });
 
-      // Broadcast each edge as a canvas action
+      // Build canvas edges for both broadcast and direct persistence
+      const canvasEdges: object[] = [];
       for (const edge of object.edges) {
         const action: CanvasAction = {
           type: "addEdge",
@@ -177,10 +202,28 @@ export const designAgentTask = schemaTask({
           target: edge.target,
           label: edge.label ?? undefined,
         };
-        await liveblocks.broadcastEvent(roomId, { type: "ai:action", action });
+        await safeBroadcast(roomId, { type: "ai:action", action });
+
+        canvasEdges.push({
+          id: edge.id,
+          type: "canvasEdge",
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: "right",
+          targetHandle: "left",
+          data: {},
+        });
       }
 
-      await liveblocks.broadcastEvent(roomId, {
+      // Persist canvas directly to blob — works whether or not browser is open
+      const blob = await put(
+        `projects/${roomId}/canvas.json`,
+        JSON.stringify({ nodes: canvasNodes, edges: canvasEdges }),
+        { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: "application/json" }
+      );
+      await prisma.project.update({ where: { id: roomId }, data: { canvasBlobUrl: blob.url } });
+
+      await safeBroadcast(roomId, {
         type: "ai:status",
         message: object.summary,
         thinking: false,
@@ -193,7 +236,7 @@ export const designAgentTask = schemaTask({
       };
     } catch (err) {
       logger.error("design-agent failed", { error: String(err) });
-      await liveblocks.broadcastEvent(roomId, {
+      await safeBroadcast(roomId, {
         type: "ai:status",
         message: "Something went wrong. Please try again.",
         thinking: false,

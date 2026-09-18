@@ -96,7 +96,7 @@ function AiSidebarHeader({ onClose }: { onClose: () => void }) {
             AI Workspace
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            Collaborate with Ghost AI
+            Collaborate with Polaris
           </p>
         </div>
       </div>

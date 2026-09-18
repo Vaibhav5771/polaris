@@ -33,7 +33,7 @@ export default function AuthLayout({
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20">
             G
           </div>
-          <span className="text-sm font-semibold text-foreground">Ghost AI</span>
+          <span className="text-sm font-semibold text-foreground">Polaris</span>
         </div>
 
         <div className="flex flex-1 flex-col justify-center">
@@ -47,7 +47,7 @@ export default function AuthLayout({
               Design systems at the speed of thought.
             </h1>
             <p className="mt-5 max-w-[28rem] text-base leading-7 text-muted-foreground">
-              Describe your architecture in plain English. Ghost AI maps it to a
+              Describe your architecture in plain English. Polaris maps it to a
               shared canvas your whole team can refine in real time.
             </p>
 
@@ -72,7 +72,7 @@ export default function AuthLayout({
         </div>
 
         <p className="text-xs text-muted-foreground/80">
-          © 2026 Ghost AI. All rights reserved.
+          © 2026 Polaris. All rights reserved.
         </p>
       </section>
 
