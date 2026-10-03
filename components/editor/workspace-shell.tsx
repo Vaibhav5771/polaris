@@ -236,9 +236,12 @@ export function WorkspaceShell({
     }
   }, [activeProject.id, user, chatMessages])
 
-  const handleAiMessage = useCallback((message: string, suggestions?: string[]) => {
+  const handleAiMessage = useCallback((message: string, suggestions?: string[], messageId?: string) => {
     const aiMsg: ChatMessage = {
-      id: `ai-${Date.now()}-${Math.random()}`,
+      // Prefer the task's per-run id so every client in the room writes the
+      // same message rather than each generating its own. The random
+      // fallback covers task versions that predate the field.
+      id: messageId ?? `ai-${Date.now()}-${Math.random()}`,
       sender: "Polaris",
       role: "assistant",
       content: message,

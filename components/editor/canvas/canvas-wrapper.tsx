@@ -14,7 +14,7 @@ interface CanvasWrapperProps {
   templatesOpen: boolean
   onTemplatesOpenChange: (open: boolean) => void
   onSaveStatusChange?: (status: CanvasSaveStatus) => void
-  onAiMessage?: (message: string, suggestions?: string[]) => void
+  onAiMessage?: (message: string, suggestions?: string[], messageId?: string) => void
   onAiThinkingChange?: (thinking: boolean, message?: string) => void
   onChatMessages?: (messages: readonly ChatMessage[]) => void
   onRegisterAddChatMessage?: (fn: (msg: ChatMessage) => void) => void

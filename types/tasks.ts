@@ -8,6 +8,8 @@ export const aiStatusPayloadSchema = z.object({
   drawing: z.boolean().optional(),
   text: z.string().optional(),
   suggestions: z.array(z.string()).optional(),
+  // Stable per-run id for Polaris's final reply; see liveblocks.config.ts.
+  messageId: z.string().optional(),
 })
 
 export type AiStatusPayload = z.infer<typeof aiStatusPayloadSchema>

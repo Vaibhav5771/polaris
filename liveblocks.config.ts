@@ -34,6 +34,10 @@ declare global {
           thinking: boolean;
           drawing?: boolean;
           suggestions?: string[];
+          // Stable per-run id for the final reply, so every client that
+          // receives this broadcast writes the same chat message rather than
+          // each adding its own copy. Absent on older task versions.
+          messageId?: string;
         }
       | { type: "ai:action"; action: CanvasAction };
 
