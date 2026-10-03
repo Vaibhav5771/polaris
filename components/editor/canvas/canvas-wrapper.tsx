@@ -14,10 +14,11 @@ interface CanvasWrapperProps {
   templatesOpen: boolean
   onTemplatesOpenChange: (open: boolean) => void
   onSaveStatusChange?: (status: CanvasSaveStatus) => void
-  onAiMessage?: (message: string) => void
+  onAiMessage?: (message: string, suggestions?: string[]) => void
   onAiThinkingChange?: (thinking: boolean, message?: string) => void
   onChatMessages?: (messages: readonly ChatMessage[]) => void
   onRegisterAddChatMessage?: (fn: (msg: ChatMessage) => void) => void
+  onRegisterClearChatMessages?: (fn: () => void) => void
   onRegisterGetCanvas?: (fn: () => { nodes: unknown[]; edges: unknown[] }) => void
 }
 
@@ -49,6 +50,7 @@ export function CanvasWrapper({
   onAiThinkingChange,
   onChatMessages,
   onRegisterAddChatMessage,
+  onRegisterClearChatMessages,
   onRegisterGetCanvas,
 }: CanvasWrapperProps) {
   return (
@@ -68,7 +70,7 @@ export function CanvasWrapper({
               nodes: new LiveMap(),
               edges: new LiveMap(),
             }),
-            aiStatus: new LiveObject({ thinking: false, message: "" }),
+            aiStatus: new LiveObject({ thinking: false, message: "", drawing: false }),
             chatMessages: new LiveList([]),
           })}
         >
@@ -89,6 +91,7 @@ export function CanvasWrapper({
                 onAiThinkingChange={onAiThinkingChange}
                 onChatMessages={onChatMessages}
                 onRegisterAddChatMessage={onRegisterAddChatMessage}
+                onRegisterClearChatMessages={onRegisterClearChatMessages}
                 onRegisterGetCanvas={onRegisterGetCanvas}
               />
             </ReactFlowProvider>

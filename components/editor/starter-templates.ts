@@ -1,5 +1,6 @@
 import type { CanvasNode, CanvasEdge, CanvasShape } from "@/types/canvas"
-import { NODE_COLOR_PALETTE } from "@/types/canvas"
+import { NODE_COLOR_PALETTE, SHAPE_SIZES } from "@/types/canvas"
+import { pickEdgeSides } from "@/lib/canvas-layout"
 
 export interface CanvasTemplate {
   id: string
@@ -13,17 +14,6 @@ const palette = Object.fromEntries(
   NODE_COLOR_PALETTE.map((entry) => [entry.id, entry]),
 ) as Record<(typeof NODE_COLOR_PALETTE)[number]["id"], (typeof NODE_COLOR_PALETTE)[number]>
 
-// Consistent default sizes per shape so template previews and post-import
-// nodes match what the shape panel produces on drag-drop.
-const SHAPE_SIZE: Record<CanvasShape, { width: number; height: number }> = {
-  rectangle: { width: 160, height: 80 },
-  pill: { width: 160, height: 60 },
-  circle: { width: 100, height: 100 },
-  diamond: { width: 140, height: 140 },
-  cylinder: { width: 140, height: 90 },
-  hexagon: { width: 130, height: 110 },
-}
-
 interface NodeSpec {
   id: string
   label: string
@@ -36,7 +26,7 @@ interface NodeSpec {
 }
 
 function makeNode(spec: NodeSpec): CanvasNode {
-  const size = SHAPE_SIZE[spec.shape]
+  const size = SHAPE_SIZES[spec.shape]
   const pair = palette[spec.color]
   return {
     id: spec.id,
@@ -59,16 +49,46 @@ interface EdgeSpec {
   label?: string
 }
 
-function makeEdges(templateId: string, specs: EdgeSpec[]): CanvasEdge[] {
-  return specs.map((spec, index) => ({
-    id: `${templateId}-e${index}`,
-    type: "canvasEdge",
+// Templates keep their hand-authored positions — whether an import should be
+// laid out automatically is still an open question, recorded in spec 0001's
+// follow-ups. Their connector sides are no longer hand-authored though: they
+// come from the same pickEdgeSides every other connector in the product uses,
+// read off the positions above. That keeps one rule for connector sides
+// without touching where template nodes sit.
+function makeTemplate(
+  id: string,
+  name: string,
+  description: string,
+  nodeSpecs: NodeSpec[],
+  edgeSpecs: EdgeSpec[],
+): CanvasTemplate {
+  const nodes = nodeSpecs.map(makeNode)
+  const bare = edgeSpecs.map((spec, index) => ({
+    id: `${id}-e${index}`,
     source: spec.source,
     target: spec.target,
-    sourceHandle: "right",
-    targetHandle: "left",
-    data: spec.label ? { label: spec.label } : {},
+    label: spec.label,
   }))
+  const sides = new Map(pickEdgeSides(nodes, bare).map((side) => [side.id, side]))
+
+  const edges: CanvasEdge[] = bare.map((edge) => {
+    // Only a template edge naming a node that does not exist misses here,
+    // which is an authoring mistake. Fall back to the same horizontal pair
+    // pickEdgeSides resolves a tie to, rather than leaving the handle
+    // undefined — React Flow fails outright on an unknown handle id.
+    const side = sides.get(edge.id)
+    return {
+      id: edge.id,
+      type: "canvasEdge",
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: side?.sourceHandle ?? "right",
+      targetHandle: side?.targetHandle ?? "left",
+      data: edge.label ? { label: edge.label } : {},
+    }
+  })
+
+  return { id, name, description, nodes, edges }
 }
 
 // Microservices — Gateway routes traffic to a set of services that all read
@@ -130,25 +150,25 @@ const eventDrivenEdges: EdgeSpec[] = [
 ]
 
 export const CANVAS_TEMPLATES: readonly CanvasTemplate[] = [
-  {
-    id: "microservices",
-    name: "Microservices",
-    description: "API gateway routing requests to a set of services backed by a shared database.",
-    nodes: microservicesNodes.map(makeNode),
-    edges: makeEdges("microservices", microservicesEdges),
-  },
-  {
-    id: "cicd",
-    name: "CI/CD Pipeline",
-    description: "Linear delivery pipeline from commit through staging to production with a rollback branch.",
-    nodes: cicdNodes.map(makeNode),
-    edges: makeEdges("cicd", cicdEdges),
-  },
-  {
-    id: "event-driven",
-    name: "Event-Driven System",
-    description: "Producer fans messages out through a broker to independent workers, with a dead-letter queue.",
-    nodes: eventDrivenNodes.map(makeNode),
-    edges: makeEdges("event-driven", eventDrivenEdges),
-  },
+  makeTemplate(
+    "microservices",
+    "Microservices",
+    "API gateway routing requests to a set of services backed by a shared database.",
+    microservicesNodes,
+    microservicesEdges,
+  ),
+  makeTemplate(
+    "cicd",
+    "CI/CD Pipeline",
+    "Linear delivery pipeline from commit through staging to production with a rollback branch.",
+    cicdNodes,
+    cicdEdges,
+  ),
+  makeTemplate(
+    "event-driven",
+    "Event-Driven System",
+    "Producer fans messages out through a broker to independent workers, with a dead-letter queue.",
+    eventDrivenNodes,
+    eventDrivenEdges,
+  ),
 ] as const

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Pencil, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -117,7 +118,18 @@ export function ProjectSidebar({
         )}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <span className="text-sm font-semibold text-foreground">Projects</span>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="Polaris logo"
+              width={28}
+              height={28}
+              className="h-7 w-7 shrink-0 rounded-lg"
+            />
+            <span className="font-brand text-base font-semibold tracking-tight text-foreground">
+              Polaris
+            </span>
+          </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close sidebar">
             <X className="h-4 w-4" />
           </Button>

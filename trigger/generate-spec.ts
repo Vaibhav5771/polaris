@@ -1,4 +1,4 @@
-import { logger, metadata, schemaTask } from "@trigger.dev/sdk/v3";
+import { logger, metadata, schemaTask } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
@@ -36,7 +36,7 @@ const chatMessageSchema = z.object({
   content: z.string(),
 });
 
-const SYSTEM_PROMPT = `You are Ghost AI, a technical documentation assistant.
+const SYSTEM_PROMPT = `You are Polaris, a technical documentation assistant.
 Given a system architecture canvas (nodes and edges) and a conversation history, produce a concise Markdown technical specification.
 
 Structure the spec as:

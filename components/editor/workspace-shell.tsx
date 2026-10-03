@@ -44,6 +44,7 @@ export function WorkspaceShell({
   const [saveStatus, setSaveStatus] = useState<CanvasSaveStatus>("idle")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const addChatMessageRef = useRef<((msg: ChatMessage) => void) | null>(null)
+  const clearChatMessagesRef = useRef<(() => void) | null>(null)
   const [aiThinking, setAiThinking] = useState(false)
   const [aiStatusMessage, setAiStatusMessage] = useState<string | undefined>()
   const [activeRun, setActiveRun] = useState<{ runId: string; publicToken: string } | null>(null)
@@ -79,16 +80,19 @@ export function WorkspaceShell({
     if (!TERMINAL_STATUSES.includes(runStatus)) return
 
     const succeeded = runStatus === "COMPLETED"
-    const msg: ChatMessage = {
-      id: `ai-${Date.now()}-${Math.random()}`,
-      sender: "Ghost AI",
-      role: "assistant",
-      content: succeeded
-        ? "Design complete. Your canvas has been updated."
-        : "The design task failed. Please try again.",
-      timestamp: Date.now(),
+    // On success, Polaris's own reply already reached the chat feed via the
+    // Liveblocks "ai:status" broadcast (see canvas-flow.tsx) — pushing a
+    // second generic message here would just repeat itself. Only add a
+    // fallback message on failure, where no such broadcast is guaranteed.
+    if (!succeeded) {
+      addChatMessageRef.current?.({
+        id: `ai-${Date.now()}-${Math.random()}`,
+        sender: "Polaris",
+        role: "assistant",
+        content: "The design task failed. Please try again.",
+        timestamp: Date.now(),
+      })
     }
-    addChatMessageRef.current?.(msg)
     setActiveRun(null)
     setAiThinking(false)
     setAiStatusMessage(undefined)
@@ -104,7 +108,7 @@ export function WorkspaceShell({
     } else {
       addChatMessageRef.current?.({
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: `Spec generation ${specRunStatus.toLowerCase()}. Check the Trigger.dev dashboard for details.`,
         timestamp: Date.now(),
@@ -131,6 +135,16 @@ export function WorkspaceShell({
 
   const handleRegisterAddChatMessage = useCallback((fn: (msg: ChatMessage) => void) => {
     addChatMessageRef.current = fn
+  }, [])
+
+  const handleRegisterClearChatMessages = useCallback((fn: () => void) => {
+    clearChatMessagesRef.current = fn
+  }, [])
+
+  // The Storage write is the only step: the cleared list flows back down
+  // through onChatMessages, so there is no local copy to reset here.
+  const handleClearChat = useCallback(() => {
+    clearChatMessagesRef.current?.()
   }, [])
 
   const handleRegisterGetCanvas = useCallback(
@@ -165,7 +179,7 @@ export function WorkspaceShell({
       console.error("Spec generation failed:", err)
       addChatMessageRef.current?.({
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: "Failed to start spec generation. Check that the Trigger.dev dev server is running and try again.",
         timestamp: Date.now(),
@@ -184,11 +198,19 @@ export function WorkspaceShell({
       timestamp: Date.now(),
     }
     addChatMessageRef.current?.(userMsg)
+    const canvas = getCanvasRef.current?.()
     try {
       const designRes = await fetch("/api/ai/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, roomId: projectId, projectId }),
+        body: JSON.stringify({
+          prompt,
+          roomId: projectId,
+          projectId,
+          chatHistory: [...chatMessages, userMsg].map((m) => ({ role: m.role, content: m.content })),
+          nodes: canvas?.nodes ?? [],
+          edges: canvas?.edges ?? [],
+        }),
       })
       if (!designRes.ok) throw new Error("Design API returned an error")
       const { runId } = await designRes.json() as { runId: string }
@@ -205,22 +227,23 @@ export function WorkspaceShell({
     } catch {
       const errMsg: ChatMessage = {
         id: `err-${Date.now()}`,
-        sender: "Ghost AI",
+        sender: "Polaris",
         role: "assistant",
         content: "Failed to start the design task. Please try again.",
         timestamp: Date.now(),
       }
       addChatMessageRef.current?.(errMsg)
     }
-  }, [activeProject.id, user])
+  }, [activeProject.id, user, chatMessages])
 
-  const handleAiMessage = useCallback((message: string) => {
+  const handleAiMessage = useCallback((message: string, suggestions?: string[]) => {
     const aiMsg: ChatMessage = {
       id: `ai-${Date.now()}-${Math.random()}`,
-      sender: "Ghost AI",
+      sender: "Polaris",
       role: "assistant",
       content: message,
       timestamp: Date.now(),
+      ...(suggestions?.length ? { suggestions } : {}),
     }
     addChatMessageRef.current?.(aiMsg)
   }, [])
@@ -324,6 +347,7 @@ export function WorkspaceShell({
             onAiThinkingChange={handleAiThinkingChange}
             onChatMessages={handleChatMessages}
             onRegisterAddChatMessage={handleRegisterAddChatMessage}
+            onRegisterClearChatMessages={handleRegisterClearChatMessages}
             onRegisterGetCanvas={handleRegisterGetCanvas}
           />
         </main>
@@ -336,6 +360,7 @@ export function WorkspaceShell({
         projectId={activeProject.id}
         messages={chatMessages}
         onSend={handleAiSend}
+        onClearChat={handleClearChat}
         isThinking={aiThinking || !!activeRun}
         statusMessage={aiStatusMessage}
         onGenerateSpec={handleGenerateSpec}

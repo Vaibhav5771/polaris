@@ -1,11 +1,31 @@
 {
   "mcpServers": {
     "trigger": {
+      "command": "npx",
       "args": [
         "trigger.dev@4.5.1",
         "mcp"
+      ]
+    },
+    "ghost-ai": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\vaibh\\ghost-ai\\.pilot-dist\\ghost-ai-mcp-server.js"
       ],
-      "command": "npx"
+      "env": {
+        "GHOST_AI_CLERK_DOMAIN": "feasible-duckling-86.clerk.accounts.dev",
+        "GHOST_AI_SESSION_ID": "sess_3Gua9SdIo72Dc9JlcBNcDiRFbna",
+        "GHOST_AI_CLERK_DB_JWT": "dvb_3Ggeqi1ww7NzMUhCRh2CsUsAiQ2",
+        "GHOST_AI_BASE_URL": "http://localhost:3000"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium"
+      ]
     }
   }
 }

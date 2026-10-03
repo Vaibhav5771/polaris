@@ -1,9 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Bot, X } from "lucide-react"
+import { Bot, Eraser, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
@@ -17,6 +25,7 @@ export interface AiSidebarProps {
   projectId: string
   messages?: ChatMessage[]
   onSend?: (prompt: string) => void
+  onClearChat?: () => void
   isThinking?: boolean
   statusMessage?: string
   onGenerateSpec?: () => Promise<void>
@@ -27,8 +36,18 @@ export interface AiSidebarProps {
 const TAB_TRIGGER_CLASS =
   "flex-1 rounded-md text-sm font-medium text-muted-foreground transition-colors data-[state=active]:bg-primary/15 data-[state=active]:text-primary"
 
-export function AiSidebar({ isOpen, onClose, projectId, messages = [], onSend, isThinking, statusMessage, onGenerateSpec, isGeneratingSpec, specRefreshKey }: AiSidebarProps) {
+export function AiSidebar({ isOpen, onClose, projectId, messages = [], onSend, onClearChat, isThinking, statusMessage, onGenerateSpec, isGeneratingSpec, specRefreshKey }: AiSidebarProps) {
   const [tab, setTab] = useState<"architect" | "specs">("architect")
+  const [isClearOpen, setIsClearOpen] = useState(false)
+
+  // Clearing wipes the thread for the whole room, so it is only offered while
+  // the chat is the visible tab and there is actually something to wipe.
+  const canClearChat = tab === "architect" && !!onClearChat && messages.length > 0
+
+  function confirmClearChat() {
+    onClearChat?.()
+    setIsClearOpen(false)
+  }
 
   return (
     <aside
@@ -38,7 +57,10 @@ export function AiSidebar({ isOpen, onClose, projectId, messages = [], onSend, i
         isOpen ? "translate-x-0" : "translate-x-full"
       )}
     >
-      <AiSidebarHeader onClose={onClose} />
+      <AiSidebarHeader
+        onClose={onClose}
+        onClearChat={canClearChat ? () => setIsClearOpen(true) : undefined}
+      />
 
       <Tabs
         value={tab}
@@ -80,11 +102,37 @@ export function AiSidebar({ isOpen, onClose, projectId, messages = [], onSend, i
           />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear chat</DialogTitle>
+            <DialogDescription>
+              This empties the thread for everyone in this project, not just you. The
+              messages cannot be recovered. The diagram on the canvas is not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsClearOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={confirmClearChat}>
+              Clear chat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   )
 }
 
-function AiSidebarHeader({ onClose }: { onClose: () => void }) {
+function AiSidebarHeader({
+  onClose,
+  onClearChat,
+}: {
+  onClose: () => void
+  onClearChat?: () => void
+}) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -96,20 +144,35 @@ function AiSidebarHeader({ onClose }: { onClose: () => void }) {
             AI Workspace
           </p>
           <p className="truncate text-xs text-muted-foreground">
-            Collaborate with Ghost AI
+            Collaborate with Polaris
           </p>
         </div>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onClose}
-        aria-label="Close AI sidebar"
-        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-      >
-        <X className="h-4 w-4" />
-      </Button>
+      <div className="flex shrink-0 items-center gap-1">
+        {onClearChat && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClearChat}
+            aria-label="Clear chat for everyone"
+            title="Clear chat for everyone"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          >
+            <Eraser className="h-4 w-4" />
+          </Button>
+        )}
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label="Close AI sidebar"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   )
 }

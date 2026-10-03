@@ -1,0 +1,180 @@
+%-------------------------
+% ATS-Friendly Resume in LaTeX
+% Divya Pardeshi
+% License : MIT
+%
+% ATS notes:
+%  - No profile photo / images (parsers can't read them).
+%  - Single-column, plain-text contact header (no multi-column tables, no icons).
+%  - Standard section headings (Summary, Education, Projects, Technical Skills).
+%  - Real, clickable links whose visible text is also readable as plain text.
+%------------------------
+
+\documentclass[a4paper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage{xcolor}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[T1]{fontenc}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\geometry{left=1.4cm, top=0.8cm, right=1.2cm, bottom=1cm}
+
+\urlstyle{same}
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-7pt}]
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{\item{#1}\vspace{-2pt}}
+
+\newcommand{\resumeSubheading}[4]{
+\vspace{0.5mm}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#4}} \\
+        \textit{\footnotesize{#3}} &  \footnotesize{#2}\\
+    \end{tabular*}
+    \vspace{-2.4mm}
+}
+
+\newcommand{\resumeProject}[4]{
+\vspace{0.5mm}\item
+    \begin{tabular*}{0.98\textwidth}[t]{l@{\extracolsep{\fill}}r}
+        \textbf{#1} & \textit{\footnotesize{#3}} \\
+        \footnotesize{\textit{#2}} & \footnotesize{#4}
+    \end{tabular*}
+    \vspace{-2.4mm}
+}
+
+\renewcommand{\labelitemi}{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=*,labelsep=0mm]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}\vspace{2mm}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=3ex, rightmargin=2ex, noitemsep,labelsep=1.2mm,itemsep=0mm]\small}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-2mm}}
+%---- End of Packages and Functions ------
+
+\begin{document}
+
+%----------HEADING-----------------
+% Single-column, plain-text header — ATS reads each line cleanly, top to bottom.
+{\Large \textbf{Divya Pardeshi}}\\[2pt]
+Computer Science and Engineering\\
+Cummins College of Engineering for Women, Pune\\[2pt]
+Phone: +91-8080374156 \quad\textbar\quad
+Email: \href{mailto:divyapradeshi@gmail.com}{divyapradeshi@gmail.com}\\
+GitHub: \href{https://github.com/divyapardeshi-dotcom}{github.com/divyapardeshi-dotcom} \quad\textbar\quad
+LinkedIn: \href{https://www.linkedin.com/in/divya-pradeshi-a676a6330}{linkedin.com/in/divya-pradeshi-a676a6330}
+
+\vspace{2mm}
+
+%-----------SUMMARY-----------------
+\section{\textbf{Summary}}
+\vspace{1mm}
+\small{Computer Science and Engineering undergraduate (B.Tech, expected 2028) with hands-on experience building full-stack web applications and machine learning systems. Skilled in Java, Python, JavaScript/TypeScript, React.js, and SQL, with a strong foundation in Data Structures \& Algorithms, OOP, and DBMS. Comfortable across the stack — REST APIs, relational databases, and modern front-end frameworks — and eager to contribute to software engineering teams.}
+\vspace{-1mm}
+
+%-----------EDUCATION-----------
+\section{\textbf{Education}}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+  {Bachelor of Technology in Computer Science and Engineering}{CGPA: 8.3}
+  {Cummins College of Engineering for Women, Pune}{2024--2028}
+
+\resumeSubheading
+  {12th (HSC), Science}{Percentage: 70.83\% \quad MHT-CET: 97.18 percentile}
+  {K.R. Kothkar Junior College, Chalisgaon}{2022--2023}
+
+\resumeSubheading
+  {10th (SSC)}{Percentage: 94.20\%}
+  {AB Girls High School, Chalisgaon}{2020--2021}
+
+\resumeSubHeadingListEnd
+\vspace{-3mm}
+
+%-----------PROJECTS-----------------
+\section{\textbf{Projects}}
+\resumeItemListStart
+
+  \resumeProject
+    {Polaris --- Collaborative Architecture Design Agent}
+    {Real-time multiplayer canvas with an AI system-design agent}
+    {Next.js \textbullet\ React \textbullet\ TypeScript \textbullet\ Liveblocks \textbullet\ Trigger.dev \textbullet\ Prisma/Postgres}
+    {}
+    \resumeItemListStart
+      \item {Built a real-time collaborative canvas for system-architecture diagrams with drag-and-drop shapes, editable nodes and edges, and live multiplayer cursors and presence using Liveblocks and React Flow.}
+      \item {Engineered an AI design agent (Trigger.dev with Groq/Gemini) that converts natural-language prompts into diagrams and auto-generates downloadable Markdown technical specifications.
+      \hspace{4mm}\href{https://github.com/divyapardeshi-dotcom}{\textcolor{blue}{\underline{$\rightarrow$ GitHub}}}}
+    \resumeItemListEnd
+
+  \resumeProject
+    {Blood Bank Management System}
+    {Efficient blood bank management using JDBC and SQL automation}
+    {Java (JDBC) \textbullet\ MySQL \textbullet\ Java Swing}
+    {}
+    \resumeItemListStart
+      \item {Developed the backend for donor management, blood inventory, and hospital requests using JDBC.}
+      \item {Implemented stored procedures, triggers, and 30+ SQL queries; added eligibility checks, stock alerts, and logging.}
+    \resumeItemListEnd
+
+  \resumeProject
+    {Pre-Delinquency Intervention Engine}
+    {ML-based financial risk prediction system}
+    {Python \textbullet\ FastAPI \textbullet\ React \textbullet\ XGBoost \textbullet\ Firebase}
+    {}
+    \resumeItemListStart
+      \item {Built a machine learning system to predict early financial distress from transaction and cash-flow patterns.}
+      \item {Developed an XGBoost model and an interactive dashboard for risk monitoring and proactive intervention.
+      \hspace{4mm}\href{https://youtu.be/Kqjl2Z-gWbc}{\textcolor{blue}{\underline{$\rightarrow$ Live Demo}}}}
+    \resumeItemListEnd
+
+  \resumeProject
+    {Advanced 3D \& Animation-Driven Websites}
+    {High-performance interactive web experiences}
+    {React \textbullet\ Three.js \textbullet\ GSAP \textbullet\ Tailwind CSS}
+    {}
+    \resumeItemListStart
+      \item {MacBook Pro 3D Showcase --- Apple-style landing page with a 3D product model, realistic lighting, scroll-triggered GSAP animations, and text masking.
+      \hspace{4mm}\href{https://mac-book-pro-clone.web.app/}{\textcolor{blue}{\underline{$\rightarrow$ Live Demo}}}}
+      \item {Drift Academy --- Automotive-themed site using Locomotive Scroll, parallax effects, video backgrounds, and custom cursor interactions.
+      \hspace{4mm}\href{https://heroic-tanuki-c4a092.netlify.app/}{\textcolor{blue}{\underline{$\rightarrow$ Live Demo}}}}
+    \resumeItemListEnd
+
+\resumeItemListEnd
+\vspace{-3mm}
+
+%----------TECHNICAL SKILLS----------
+% Plain bold-label lines (no tables) so ATS captures every keyword.
+\section{\textbf{Technical Skills}}
+\vspace{1mm}
+\small{
+\textbf{Languages:} Java, Python, SQL, JavaScript, TypeScript, HTML/CSS\\[2pt]
+\textbf{Frameworks \& Libraries:} React.js, Next.js, FastAPI, Three.js, GSAP, Tailwind CSS, Java Swing\\[2pt]
+\textbf{Databases:} MySQL, PostgreSQL, Firebase\\[2pt]
+\textbf{Tools \& Platforms:} Git, GitHub, VS Code, Figma, npm, Prisma\\[2pt]
+\textbf{Concepts:} Data Structures \& Algorithms, Object-Oriented Programming, DBMS, Operating Systems, Software Engineering, REST APIs, Machine Learning
+}
+\vspace{1mm}
+
+%----------EXTRACURRICULAR----------
+\section{\textbf{Extracurricular Activities}}
+\resumeItemListStart
+  \resumeItem{NSS (National Service Scheme) --- Volunteer.}
+  \resumeItem{Katalyst Community --- Career Development Program.}
+\resumeItemListEnd
+
+\end{document}
