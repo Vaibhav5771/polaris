@@ -35,11 +35,19 @@ const STARTER_PROMPTS = [
 ] as const
 
 export function AiArchitectTab({ messages, onSend, isThinking, statusMessage }: AiArchitectTabProps) {
-  // Validate messages before rendering — drop any that don't match the schema.
-  const validMessages = useMemo(
-    () => messages.filter((m) => chatMessageSchema.safeParse(m).success),
-    [messages]
-  )
+  // Validate messages before rendering — drop any that don't match the
+  // schema — and collapse duplicate ids. Two clients can both write Polaris's
+  // reply before either write syncs to the other, so the shared feed can
+  // legitimately hold the same message twice; the first copy wins.
+  const validMessages = useMemo(() => {
+    const seen = new Set<string>()
+    return messages.filter((m) => {
+      if (!chatMessageSchema.safeParse(m).success) return false
+      if (seen.has(m.id)) return false
+      seen.add(m.id)
+      return true
+    })
+  }, [messages])
 
   function handleSubmit(message: PromptInputMessage) {
     const trimmed = message.text.trim()

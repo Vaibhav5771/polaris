@@ -169,8 +169,15 @@ export const designAgentTask = schemaTask({
     nodes: z.array(canvasNodeSchema).default([]),
     edges: z.array(canvasEdgeSchema).default([]),
   }),
-  run: async ({ prompt, roomId, chatHistory, nodes, edges: existingEdges }) => {
+  run: async ({ prompt, roomId, chatHistory, nodes, edges: existingEdges }, { ctx }) => {
     logger.log("design-agent started", { roomId, promptLength: prompt.length });
+
+    // One stable id for this run's final reply. Every client in the room
+    // receives the same ai:status broadcast and each one writes it into the
+    // shared chat feed, so without a shared id two tabs produce two identical
+    // messages. Keyed on the run, so the id is the same for every receiver
+    // and different for every run.
+    const replyId = `ai-${ctx.run.id}`;
 
     await trySetPresence(roomId, { cursor: { x: 500, y: 300 }, thinking: true });
     await safeBroadcast(roomId, {
@@ -217,6 +224,7 @@ export const designAgentTask = schemaTask({
           message: route.reply,
           thinking: false,
           suggestions,
+          messageId: replyId,
         });
         return { roomId, intent: "chat" as const, reply: route.reply, suggestions };
       }
@@ -253,6 +261,7 @@ export const designAgentTask = schemaTask({
           message: object.summary || route.reply,
           thinking: false,
           suggestions,
+          messageId: replyId,
         });
         return { roomId, intent: "chat" as const, reply: object.summary, suggestions };
       }
@@ -426,6 +435,7 @@ export const designAgentTask = schemaTask({
         message: object.summary,
         thinking: false,
         suggestions,
+        messageId: replyId,
       });
 
       return {
@@ -442,6 +452,7 @@ export const designAgentTask = schemaTask({
         type: "ai:status",
         message: "Something went wrong. Please try again.",
         thinking: false,
+        messageId: replyId,
       });
       throw err;
     } finally {

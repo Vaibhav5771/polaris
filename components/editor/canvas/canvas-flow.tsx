@@ -50,7 +50,7 @@ interface CanvasFlowProps {
   templatesOpen: boolean
   onTemplatesOpenChange: (open: boolean) => void
   onSaveStatusChange?: (status: CanvasSaveStatus) => void
-  onAiMessage?: (message: string, suggestions?: string[]) => void
+  onAiMessage?: (message: string, suggestions?: string[], messageId?: string) => void
   onAiThinkingChange?: (thinking: boolean, message?: string) => void
   onChatMessages?: (messages: readonly ChatMessage[]) => void
   onRegisterAddChatMessage?: (fn: (msg: ChatMessage) => void) => void
@@ -86,8 +86,15 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
   // ai-chat feed — separate from ai-status-feed (aiStatus Storage key).
   const chatMessages = useStorage((root) => root.chatMessages)
 
+  // Idempotent on id. Polaris's reply is broadcast to every client in the
+  // room and each one writes it into this shared feed, so without this guard
+  // two open tabs produce two identical messages. This skip handles the
+  // common case; the render path dedupes as well, because two clients can
+  // both pass this check before either write has synced to the other.
   const addChatMessage = useMutation(({ storage }, msg: ChatMessage) => {
-    storage.get("chatMessages").push(msg)
+    const feed = storage.get("chatMessages")
+    if (msg.id && feed.some((existing) => existing.id === msg.id)) return
+    feed.push(msg)
   }, [])
 
   // Emptying the LiveList is the whole reset: Storage is the only home the chat
@@ -238,7 +245,7 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
         suggestions: event.suggestions,
       })
       if (!parsed.success) return
-      const { thinking, drawing, text, suggestions } = parsed.data
+      const { thinking, drawing, text, suggestions, messageId } = parsed.data
       // A status that is not thinking is terminal, so it can never leave the
       // canvas overlay stuck on from an earlier drawing phase.
       updateAiStatus({ thinking, message: text ?? "", drawing: thinking && (drawing ?? false) })
@@ -247,7 +254,7 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
       // message (thinking: false) — Polaris's actual reply — joins the
       // permanent chat feed; otherwise every progress tick would spam the
       // conversation as its own message bubble.
-      if (text && !thinking) onAiMessage?.(text, suggestions)
+      if (text && !thinking) onAiMessage?.(text, suggestions, messageId)
     } else if (event.type === "ai:action") {
       handleAiAction(event.action)
     }
