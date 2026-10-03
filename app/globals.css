@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@clerk/ui/themes/shadcn.css";
 @import "@xyflow/react/dist/style.css";
+@source "../node_modules/streamdown/dist/*.js";
 
 @theme inline {
   --color-background: var(--background);
@@ -26,6 +27,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --font-brand: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Dark-only theme — no light mode override */

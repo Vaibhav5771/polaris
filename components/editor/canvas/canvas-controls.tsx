@@ -1,6 +1,6 @@
 "use client"
 
-import { Maximize, Redo2, Undo2, ZoomIn, ZoomOut } from "lucide-react"
+import { Maximize, Redo2, Undo2, Wand2, ZoomIn, ZoomOut } from "lucide-react"
 import { useReactFlow } from "@xyflow/react"
 import { useCanRedo, useCanUndo, useRedo, useUndo } from "@liveblocks/react"
 
@@ -28,7 +28,14 @@ function ControlButton({ onClick, disabled, title, children }: ControlButtonProp
   )
 }
 
-export function CanvasControls() {
+interface CanvasControlsProps {
+  /** Lay the whole canvas out again, for everyone in the room. */
+  onTidyLayout: () => void
+  /** True while Polaris is drawing, or when there is nothing to lay out. */
+  tidyDisabled: boolean
+}
+
+export function CanvasControls({ onTidyLayout, tidyDisabled }: CanvasControlsProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow()
   const undo = useUndo()
   const redo = useRedo()
@@ -61,6 +68,14 @@ export function CanvasControls() {
       </ControlButton>
       <ControlButton onClick={redo} disabled={!canRedo} title="Redo">
         <Redo2 className="h-4 w-4" />
+      </ControlButton>
+      <div className="mx-1 h-5 w-px bg-white/10" aria-hidden />
+      <ControlButton
+        onClick={onTidyLayout}
+        disabled={tidyDisabled}
+        title="Tidy layout"
+      >
+        <Wand2 className="h-4 w-4" />
       </ControlButton>
     </div>
   )

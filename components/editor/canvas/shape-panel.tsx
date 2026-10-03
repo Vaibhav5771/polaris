@@ -2,23 +2,13 @@
 
 import { useRef } from "react"
 import type { CanvasShape, ShapeDragPayload } from "@/types/canvas"
-import { SHAPE_DRAG_TYPE } from "@/types/canvas"
+import { SHAPE_DRAG_TYPE, SHAPE_SIZES } from "@/types/canvas"
 import { ShapeVisual } from "./shape-visual"
 
-interface ShapeConfig {
-  shape: CanvasShape
-  width: number
-  height: number
-}
-
-const SHAPES: ShapeConfig[] = [
-  { shape: "rectangle", width: 160, height: 80 },
-  { shape: "diamond",   width: 140, height: 140 },
-  { shape: "circle",    width: 100, height: 100 },
-  { shape: "pill",      width: 160, height: 70 },
-  { shape: "cylinder",  width: 120, height: 80 },
-  { shape: "hexagon",   width: 120, height: 110 },
-]
+// Panel order, left to right. The box each one drops at comes from the shared
+// size table, so a shape dragged from here matches the same shape placed by a
+// template or by Polaris.
+const SHAPES: CanvasShape[] = ["rectangle", "diamond", "circle", "pill", "cylinder", "hexagon"]
 
 function ShapeIcon({ shape }: { shape: CanvasShape }) {
   const s = { stroke: "currentColor", fill: "none", strokeWidth: 1.5 } as const
@@ -71,31 +61,24 @@ export function ShapePanel() {
   return (
     <>
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-3 py-2 rounded-full bg-[oklch(0.18_0_0)] border border-white/10 shadow-xl">
-        {SHAPES.map((config) => (
+        {SHAPES.map((shape) => (
           <button
-            key={config.shape}
+            key={shape}
             draggable
             onDragStart={(e) => {
-              const payload: ShapeDragPayload = {
-                shape: config.shape,
-                width: config.width,
-                height: config.height,
-              }
+              const { width, height } = SHAPE_SIZES[shape]
+              const payload: ShapeDragPayload = { shape, width, height }
               e.dataTransfer.setData(SHAPE_DRAG_TYPE, JSON.stringify(payload))
               e.dataTransfer.effectAllowed = "copy"
-              const preview = previewRefs.current[config.shape]
+              const preview = previewRefs.current[shape]
               if (preview) {
-                e.dataTransfer.setDragImage(
-                  preview,
-                  config.width / 2,
-                  config.height / 2,
-                )
+                e.dataTransfer.setDragImage(preview, width / 2, height / 2)
               }
             }}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-grab active:cursor-grabbing"
-            title={config.shape}
+            title={shape}
           >
-            <ShapeIcon shape={config.shape} />
+            <ShapeIcon shape={shape} />
           </button>
         ))}
       </div>
@@ -108,15 +91,15 @@ export function ShapePanel() {
           pointerEvents: "none",
         }}
       >
-        {SHAPES.map((config) => (
+        {SHAPES.map((shape) => (
           <div
-            key={config.shape}
+            key={shape}
             ref={(el) => {
-              previewRefs.current[config.shape] = el
+              previewRefs.current[shape] = el
             }}
-            style={{ width: config.width, height: config.height }}
+            style={{ width: SHAPE_SIZES[shape].width, height: SHAPE_SIZES[shape].height }}
           >
-            <ShapeVisual shape={config.shape} />
+            <ShapeVisual shape={shape} />
           </div>
         ))}
       </div>

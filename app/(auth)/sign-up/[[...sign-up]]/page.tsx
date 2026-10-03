@@ -10,15 +10,15 @@ export default function SignUpPage() {
         elements: {
           rootBox: "w-full",
           cardBox:
-            "w-full overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-background/40",
-          card: "w-full gap-6 bg-card p-8",
+            "w-full overflow-hidden rounded-xl border border-border bg-[oklch(0.19_0.005_260)] shadow-2xl shadow-background/40",
+          card: "w-full gap-6 bg-[oklch(0.19_0.005_260)] p-8",
           headerTitle: "text-xl font-semibold tracking-normal text-foreground",
           headerSubtitle: "text-sm text-muted-foreground",
           socialButtons:
             "grid grid-cols-2 gap-3 [&:has(>:only-child)]:grid-cols-1",
           socialButtonsBlockButton:
             "h-10 rounded-md border border-border bg-background text-sm font-medium text-foreground hover:bg-secondary",
-          dividerLine: "bg-border",
+          dividerLine: "bg-white/15",
           dividerText: "text-xs text-muted-foreground",
           formFieldLabel: "text-sm font-medium text-foreground",
           formFieldInput:

@@ -22,10 +22,13 @@ export async function POST(request: Request) {
     return jsonError("Invalid request body", 400);
   }
 
-  const { prompt, roomId, projectId } = body as {
+  const { prompt, roomId, projectId, chatHistory, nodes, edges } = body as {
     prompt?: unknown;
     roomId?: unknown;
     projectId?: unknown;
+    chatHistory?: unknown;
+    nodes?: unknown;
+    edges?: unknown;
   };
 
   if (typeof prompt !== "string" || !prompt.trim()) {
@@ -41,6 +44,9 @@ export async function POST(request: Request) {
   const handle = await designAgentTask.trigger({
     prompt: prompt.trim(),
     roomId: roomId.trim(),
+    chatHistory: Array.isArray(chatHistory) ? chatHistory : [],
+    nodes: Array.isArray(nodes) ? nodes : [],
+    edges: Array.isArray(edges) ? edges : [],
   });
 
   await prisma.taskRun.create({

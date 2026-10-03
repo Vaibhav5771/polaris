@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ReactFlow, Background, BackgroundVariant, MiniMap, ConnectionMode, useReactFlow } from "@xyflow/react"
 import { useLiveblocksFlow } from "@liveblocks/react-flow"
-import { useMutation, useRedo, useStorage, useUndo, useUpdateMyPresence, useEventListener } from "@liveblocks/react"
+import { useHistory, useMutation, useRedo, useStorage, useUndo, useUpdateMyPresence, useEventListener } from "@liveblocks/react"
 import { Loader2 } from "lucide-react"
 
 import type { CanvasNode, CanvasEdge, CanvasAction } from "@/types/canvas"
 import { SHAPE_DRAG_TYPE, type ShapeDragPayload } from "@/types/canvas"
+import { layoutCanvas, pickEdgeSides } from "@/lib/canvas-layout"
 import { aiStatusPayloadSchema, type ChatMessage } from "@/types/tasks"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useCanvasAutosave, type CanvasSaveStatus } from "@/hooks/use-canvas-autosave"
@@ -49,20 +50,22 @@ interface CanvasFlowProps {
   templatesOpen: boolean
   onTemplatesOpenChange: (open: boolean) => void
   onSaveStatusChange?: (status: CanvasSaveStatus) => void
-  onAiMessage?: (message: string) => void
+  onAiMessage?: (message: string, suggestions?: string[]) => void
   onAiThinkingChange?: (thinking: boolean, message?: string) => void
   onChatMessages?: (messages: readonly ChatMessage[]) => void
   onRegisterAddChatMessage?: (fn: (msg: ChatMessage) => void) => void
+  onRegisterClearChatMessages?: (fn: () => void) => void
   onRegisterGetCanvas?: (fn: () => { nodes: CanvasNode[]; edges: CanvasEdge[] }) => void
 }
 
-export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, onSaveStatusChange, onAiMessage, onAiThinkingChange, onChatMessages, onRegisterAddChatMessage, onRegisterGetCanvas }: CanvasFlowProps) {
+export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, onSaveStatusChange, onAiMessage, onAiThinkingChange, onChatMessages, onRegisterAddChatMessage, onRegisterClearChatMessages, onRegisterGetCanvas }: CanvasFlowProps) {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({ suspense: true })
   const reactFlow = useReactFlow()
   const { screenToFlowPosition, fitView } = reactFlow
   const undo = useUndo()
   const redo = useRedo()
+  const history = useHistory()
   const updateMyPresence = useUpdateMyPresence()
 
   useKeyboardShortcuts({ reactFlow, undo, redo })
@@ -71,6 +74,9 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
   // see the correct state. Falls back to false for rooms created before this feature.
   const aiThinking = (useStorage((root) => root.aiStatus?.thinking ?? false) ?? false)
   const aiMessage = (useStorage((root) => root.aiStatus?.message ?? "") ?? "")
+  // Narrower than aiThinking: true only while Polaris is actually putting
+  // shapes on the canvas, never while it is routing or answering in chat.
+  const aiDrawing = (useStorage((root) => root.aiStatus?.drawing ?? false) ?? false)
 
   // Sync thinking state to the parent and to my own presence so cursor badges update.
   useEffect(() => {
@@ -84,15 +90,27 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
     storage.get("chatMessages").push(msg)
   }, [])
 
+  // Emptying the LiveList is the whole reset: Storage is the only home the chat
+  // feed has, so every participant's subscription fires and the cleared thread
+  // is what a reload hydrates from.
+  const clearChatMessages = useMutation(({ storage }) => {
+    storage.get("chatMessages").clear()
+  }, [])
+
   // Pipe the full message list up whenever it changes (covers initial load + real-time updates).
   useEffect(() => {
     onChatMessages?.(chatMessages ?? [])
   }, [chatMessages, onChatMessages])
 
-  // Register the mutation function so the parent can add messages from outside the RoomProvider.
+  // Register the mutation functions so the parent can add to and clear the
+  // feed from outside the RoomProvider.
   useEffect(() => {
     onRegisterAddChatMessage?.(addChatMessage)
   }, [addChatMessage, onRegisterAddChatMessage])
+
+  useEffect(() => {
+    onRegisterClearChatMessages?.(clearChatMessages)
+  }, [clearChatMessages, onRegisterClearChatMessages])
 
   // Register a getter so the parent can read current nodes/edges on demand
   // (used by the spec generation handler in WorkspaceShell).
@@ -106,11 +124,15 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
   }, [aiThinking, updateMyPresence])
 
   const updateAiStatus = useMutation(
-    ({ storage }, { thinking, message }: { thinking: boolean; message: string }) => {
+    (
+      { storage },
+      { thinking, message, drawing }: { thinking: boolean; message: string; drawing: boolean },
+    ) => {
       const aiStatus = storage.get("aiStatus")
       if (!aiStatus) return
       aiStatus.set("thinking", thinking)
       aiStatus.set("message", message)
+      aiStatus.set("drawing", drawing)
     },
     [],
   )
@@ -151,6 +173,26 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
       case "deleteEdge":
         edgesMap.delete(action.id)
         break
+      // The one storage write path for a layout, shared by three callers: the
+      // AI making room on the canvas before it streams new nodes in, the tidy
+      // button, and a drag re-siding the connectors it touched. A drag passes
+      // an empty `nodes` array, which is what keeps it from moving anything.
+      // Every write below happens inside this single mutation, so the whole
+      // layout is one undo step.
+      case "applyLayout": {
+        for (const position of action.nodes) {
+          const node = nodesMap.get(position.id)
+          if (node) node.set("position", { x: position.x, y: position.y })
+        }
+        for (const side of action.edges) {
+          const edge = edgesMap.get(side.id)
+          if (edge) {
+            edge.set("sourceHandle", side.sourceHandle)
+            edge.set("targetHandle", side.targetHandle)
+          }
+        }
+        break
+      }
     }
   }, [])
 
@@ -171,8 +213,13 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
         type: "canvasEdge",
         source: action.source,
         target: action.target,
-        sourceHandle: "right",
-        targetHandle: "left",
+        // Sides come from the layout now. The fallback is load bearing rather
+        // than defensive: a task deploy that predates the layout work sends no
+        // sides, and an edge with an undefined handle fails React Flow's
+        // handle lookup outright. Falling back to the old pair degrades to
+        // exactly today's behaviour instead.
+        sourceHandle: action.sourceHandle ?? "right",
+        targetHandle: action.targetHandle ?? "left",
         data: { label: action.label },
       }
       onEdgesChange([{ type: "add", item: edge }])
@@ -186,12 +233,21 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
       // Validate through the ai-status-feed schema before acting on the payload.
       const parsed = aiStatusPayloadSchema.safeParse({
         thinking: event.thinking,
+        drawing: event.drawing,
         text: event.message,
+        suggestions: event.suggestions,
       })
       if (!parsed.success) return
-      const { thinking, text } = parsed.data
-      updateAiStatus({ thinking, message: text ?? "" })
-      if (text) onAiMessage?.(text)
+      const { thinking, drawing, text, suggestions } = parsed.data
+      // A status that is not thinking is terminal, so it can never leave the
+      // canvas overlay stuck on from an earlier drawing phase.
+      updateAiStatus({ thinking, message: text ?? "", drawing: thinking && (drawing ?? false) })
+      // Intermediate progress updates ("Generating…", "Placing nodes…") only
+      // drive the ephemeral status strip above the input. Only the final
+      // message (thinking: false) — Polaris's actual reply — joins the
+      // permanent chat feed; otherwise every progress tick would spam the
+      // conversation as its own message bubble.
+      if (text && !thinking) onAiMessage?.(text, suggestions)
     } else if (event.type === "ai:action") {
       handleAiAction(event.action)
     }
@@ -327,6 +383,64 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
     [nodes, edges, onDelete, onNodesChange, onEdgesChange, onTemplatesOpenChange, fitView],
   )
 
+  // Tidy layout: run the shared layout over whatever is on the canvas right
+  // now — an AI diagram, an imported template, or shapes placed by hand — and
+  // write it in one mutation so every collaborator sees it and one undo takes
+  // it back. The viewport nudge is local: nobody else's view gets yanked.
+  const handleTidyLayout = useCallback(() => {
+    const result = layoutCanvas(nodes, edges)
+    if (result.nodes.length === 0 && result.edges.length === 0) return
+    applyAiStorageMutation({ type: "applyLayout", nodes: result.nodes, edges: result.edges })
+    requestAnimationFrame(() => {
+      fitView({ duration: 400, padding: 0.2 })
+    })
+  }, [nodes, edges, applyAiStorageMutation, fitView])
+
+  // Pausing history on drag start and resuming after the side write folds the
+  // move and the connector re-side into one undo entry, so undoing a drag
+  // never leaves connectors pointing at the faces of the old position.
+  const onDragStartPauseHistory = useCallback(() => {
+    history.pause()
+  }, [history])
+
+  // Only the client that did the dragging writes; everyone else receives the
+  // new sides through storage like any other canvas edit.
+  const resideAfterDrag = useCallback(
+    (moved: readonly CanvasNode[]) => {
+      try {
+        const movedById = new Map(moved.map((node) => [node.id, node]))
+        if (movedById.size === 0) return
+        // React Flow hands back the dragged nodes at their final positions,
+        // which can be a render ahead of the mirrored refs.
+        const current = nodesRef.current.map((node) => movedById.get(node.id) ?? node)
+        const touched = edgesRef.current.filter(
+          (edge) => movedById.has(edge.source) || movedById.has(edge.target),
+        )
+        if (touched.length === 0) return
+        const sides = pickEdgeSides(current, touched)
+        if (sides.length === 0) return
+        applyAiStorageMutation({ type: "applyLayout", nodes: [], edges: sides })
+      } finally {
+        history.resume()
+      }
+    },
+    [applyAiStorageMutation, history],
+  )
+
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, _node: CanvasNode, draggedNodes: CanvasNode[]) => {
+      resideAfterDrag(draggedNodes)
+    },
+    [resideAfterDrag],
+  )
+
+  const onSelectionDragStop = useCallback(
+    (_event: React.MouseEvent, draggedNodes: CanvasNode[]) => {
+      resideAfterDrag(draggedNodes)
+    },
+    [resideAfterDrag],
+  )
+
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = "copy"
@@ -382,6 +496,10 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onDelete={onDelete}
+        onNodeDragStart={onDragStartPauseHistory}
+        onNodeDragStop={onNodeDragStop}
+        onSelectionDragStart={onDragStartPauseHistory}
+        onSelectionDragStop={onSelectionDragStop}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
@@ -417,13 +535,16 @@ export function CanvasFlow({ projectId, templatesOpen, onTemplatesOpenChange, on
       <LiveCursors />
       <PresenceAvatars />
       <ShapePanel />
-      <CanvasControls />
+      <CanvasControls
+        onTidyLayout={handleTidyLayout}
+        tidyDisabled={aiDrawing || nodes.length === 0}
+      />
       <StarterTemplatesModal
         open={templatesOpen}
         onOpenChange={onTemplatesOpenChange}
         onImport={importTemplate}
       />
-      {aiThinking && (
+      {aiDrawing && (
         <div className="pointer-events-none absolute bottom-20 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary/30 bg-background/90 px-4 py-2 text-xs font-medium text-primary backdrop-blur">
           <Loader2 className="h-3 w-3 animate-spin" />
           Polaris is designing…

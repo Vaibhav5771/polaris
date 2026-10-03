@@ -12,7 +12,9 @@ declare global {
 
     Storage: {
       flow: LiveblocksFlow<CanvasNode, CanvasEdge>;
-      aiStatus: LiveObject<{ thinking: boolean; message: string }>;
+      // `drawing` is optional because rooms created before it existed have no
+      // such key in their stored object.
+      aiStatus: LiveObject<{ thinking: boolean; message: string; drawing?: boolean }>;
       chatMessages: LiveList<ChatMessage>;
     };
 
@@ -26,7 +28,13 @@ declare global {
     };
 
     RoomEvent:
-      | { type: "ai:status"; message: string; thinking: boolean }
+      | {
+          type: "ai:status";
+          message: string;
+          thinking: boolean;
+          drawing?: boolean;
+          suggestions?: string[];
+        }
       | { type: "ai:action"; action: CanvasAction };
 
     ThreadMetadata: {};
